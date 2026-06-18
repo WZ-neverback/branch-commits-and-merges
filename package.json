@@ -1,0 +1,22 @@
+{
+  "name": "commit-and-merge",
+  "version": "0.1.0",
+  "description": "自动化 Git 工作流：lint 检查 → 提交已暂存变更 → 合并到目标分支",
+  "type": "module",
+  "main": "SKILL.md",
+  "files": [
+    "SKILL.md",
+    "README.md"
+  ],
+  "keywords": [
+    "qoder",
+    "trae",
+    "skill",
+    "git",
+    "commit",
+    "merge",
+    "workflow"
+  ],
+  "author": "wz-never-back",
+  "license": "MIT"
+}
