@@ -1,11 +1,12 @@
 # commit-and-merge
 
 > 自动化 Git 工作流：lint 检查 → 提交已暂存变更 → 合并到目标分支。
-> Automated git workflow: lint → commit staged changes → merge into target branch.
+
+> 📌 **本 README 是 [SKILL.md](./SKILL.md) 的精简版**，权威定义以 SKILL.md 为准。
 
 ## 功能
 
-- 自动 lint 检查（可自定义命令）
+- 自动 lint 检查
 - 提交本地**已暂存**变更
 - 合并到指定目标分支
 - 推送源分支与目标分支
@@ -15,7 +16,7 @@
 ## 命令格式
 
 ```
-/commit-and-merge [--<目标分支>] ["提交信息"] [--no-verify] [--dry-run] [--lint-cmd "<cmd>"]
+/commit-and-merge [--<目标分支>] ["提交信息"] [--no-verify] [--dry-run]
 ```
 
 参数位置无关，可任意组合。
@@ -26,7 +27,6 @@
 |------|------|
 | `--no-verify` | 跳过 lint + Git 钩子 |
 | `--dry-run` | 模拟执行，第 5 步和第 8 步前停下 |
-| `--lint-cmd "<cmd>"` | 自定义 lint 命令（覆盖 `npm run lint`） |
 
 ### 常用分支
 
@@ -53,28 +53,25 @@
 # 跳过检查合并到 preview
 /commit-and-merge --preview --no-verify
 
+# 紧急修复合并到 master 并跳过检查
+/commit-and-merge --master "fix: 紧急修复" --no-verify
+
 # Dry-Run：模拟执行（不真实写 git）
 /commit-and-merge --preview --dry-run
-
-# pnpm 项目（自定义 lint）
-/commit-and-merge --lint-cmd "pnpm lint" --develop
-
-# 完整组合
-/commit-and-merge --preview "fix: 修复 bug" --no-verify --lint-cmd "pnpm lint:fix"
 ```
 
 ## 工作流程（10 步）
 
 1. **解析参数** — 保留标志白名单 + 分支名 + 提交信息
 2. **检查 Git 状态** — 分类已暂存/未暂存/未跟踪，按需引导暂存；无变更默认仅合并
-3. **Lint 检查** — `$LINT_CMD`（默认 `npm run lint`），失败时先自动修复
+3. **Lint 检查** — `npm run lint`，失败时先自动修复
 4. **确认目标分支** — 展示分支信息与 CI 行为
 5. **预览并提交** — Dry-Run 检查点 + 格式校验 + AI 建议 message
 6. **推送源分支** — 指数退避 3 次重试，处理 `non-fast-forward`
 7. **切换并更新目标分支** — 自动 stash 保护 + 拉取最新
 8. **合并源分支** — Dry-Run 检查点 + 冲突处理（手动 / AI 辅助 / 中止）
 9. **推送目标分支并切回源分支** — Stash 恢复（区分自动 / 用户）
-10. **输出汇总报告** — 中英双语 + emoji 状态
+10. **输出汇总报告** — 中文版 + emoji 状态
 
 > 完整规范、异常处理、安全约束见 [SKILL.md](./SKILL.md)。
 
@@ -98,6 +95,47 @@
 - `--no-verify` 跳过检查时，汇总报告明确标注
 - Dry-Run 模式下任何 git 写操作前必须等待用户确认
 - 自动 stash 与用户 stash 区分处理，避免误恢复
+
+## 汇总报告示例
+
+成功完成后输出：
+
+```
+✅ 提交 & 合并完成！
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📌 基本信息
+  源分支：feature/user-login
+  目标分支：preview
+  相同分支：否
+
+📝 提交
+  Message："feat(login): 新增扫码登录功能"
+  Hash：abc1234
+  文件变更：5 个（仅已暂存）
+  Commit 状态：已提交 ✅
+
+🔍 Lint 检查
+  结果：通过 ✅
+
+🚀 推送
+  源分支：成功 ✅
+  目标分支：成功 ✅
+
+🔀 合并
+  状态：成功 ✅
+  冲突文件：0
+
+📦 Stash 恢复
+  自动 Stash：无
+  用户 Stash：无
+
+🔧 当前状态
+  当前分支：feature/user-login
+  CI 状态：构建已触发（npm run prebuild）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+更多场景模板（相同分支 / 仅合并 / `--no-verify` / Dry-Run）见 [SKILL.md](./SKILL.md)。
 
 ## FAQ
 
@@ -141,7 +179,7 @@ git add .
 
 不会。失败处理策略：
 
-1. 先自动执行 `$LINT_CMD --fix` 尝试修复
+1. 先自动执行 `npm run lint --fix` 尝试修复
 2. 若仍无法修复，**自动跳过**并在报告中标注
 3. 若未配置 lint 脚本或 `node_modules` 未安装，也会自动跳过
 
@@ -172,25 +210,6 @@ git add .
 - 不熟悉 Skill 行为时先试运行
 - 复杂合并前预演
 - 教学/演示场景
-
-### 自定义 lint 命令怎么用？
-
-使用 `--lint-cmd "<cmd>"` 覆盖默认的 `npm run lint`：
-
-```bash
-# pnpm 项目
-/commit-and-merge --lint-cmd "pnpm lint"
-
-/commit-and-merge --lint-cmd "pnpm lint" --develop
-
-# monorepo 指定子包
-/commit-and-merge --lint-cmd "npm run lint -w @scope/pkg" --develop
-
-# yarn 项目
-/commit-and-merge --lint-cmd "yarn lint" --preview
-```
-
-> 自定义命令执行失败时，会自动尝试追加 `--fix` 参数再试。
 
 ### 浅克隆（shallow clone）仓库能用吗？
 
