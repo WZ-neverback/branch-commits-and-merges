@@ -196,22 +196,27 @@ git submodule status                       # 子模块状态
 
 #### 子流程 C/D：存在未暂存或未跟踪文件
 
+> ⚠️ **强制约束**：
+> - **绝对禁止**在执行 `git commit` 前自动运行任何形式的 `git add`（包括 `git add .`、`git add -A`、`git add -u`、`git add --all`）
+> - 只有用户**明确选择**选项 2/3/5 时，才能执行对应的 `git add` 命令
+> - 默认行为（选项 1）**什么都不做**，直接跳过暂存，进入第 3 步
+
 询问暂存策略：
 
 | # | 选项 | 操作 | 备注 |
 |---|------|------|------|
-| 1 | 仅提交已暂存 | 无操作 | **默认** |
-| 2 | `git add -A` | 暂存全部 | 含未跟踪文件 |
-| 3 | `git add -u` | 暂存已跟踪 | 排除未跟踪 |
+| 1 | 仅提交已暂存 | **无操作，直接进入第 3 步** | **默认**，未暂存/未跟踪的文件**完全不参与**本次提交 |
+| 2 | `git add -A` | 暂存全部 | 含未跟踪文件（**需用户明确确认后才执行**） |
+| 3 | `git add -u` | 暂存已跟踪 | 排除未跟踪（**需用户明确确认后才执行**） |
 | 4 | 跳过 commit | 仅合并 | 标记 `MERGE_ONLY=true` |
 | 5 | 高级操作 | 见下 | — |
 
-**选项 5 高级操作**：
+**选项 5 高级操作**（**所有写操作需用户明确触发，不得自动执行**）：
 
 - `git diff` / `git diff --cached` — 查看差异
-- `git add -p` / `git restore --staged <file>` — 精细控制
+- `git add -p` / `git restore --staged <file>` — 精细控制（**需用户指定文件和操作**）
 - `git stash push -u` / `git stash pop` — Stash 工作区（**标记 `USER_STASH_EXISTS=true`**）
-- `git restore <file>` / `git checkout -- <file>` — ⚠️ 危险操作，需二次确认
+- `git restore <file>` / `git checkout -- <file>` — ⚠️ 危险操作，**必须**二次确认
 
 ### 第 3 步：Lint 检查
 
@@ -291,7 +296,20 @@ npm run lint
 - 空行后 Body ≤ 100 字符/行
 - Conventional Commits 前缀（`feat` / `fix` 等）— **提示但不阻断**
 
-**5.3 执行提交**
+**5.3 提交前校验**（关键防护）
+
+> ⚠️ **执行 `git commit` 前必须重新校验**，确保暂存区未被意外修改：
+
+```bash
+git diff --stat --cached
+git status --short
+```
+
+- 对比 5.1 展示的文件列表，确认**仅有原本已暂存的文件**
+- 若发现多出未暂存文件（原本在 UNSTAGED_FILES / UNTRACKED_FILES 中的文件出现在暂存区），**立即停止**，向用户报告异常，不得继续提交
+- **绝对禁止在此处自动执行 `git add` 或 `git add -A`**
+
+**5.4 执行提交**
 
 ```bash
 # 情况 A / B 通用
@@ -300,6 +318,8 @@ git commit -m "USER_COMMIT_MESSAGE"
 # NO_VERIFY=true 时
 git commit -m "USER_COMMIT_MESSAGE" --no-verify
 ```
+
+> ⚠️ **严禁使用** `git commit -a`（`-a` 会自动暂存所有已修改文件）和 `git commit --all`。
 
 提交后展示 `COMMIT_HASH` 和完整 message。
 
@@ -597,7 +617,9 @@ git merge SOURCE_BRANCH --no-edit
 
 ### 安全约束
 
-- 仅提交已暂存文件，**不自动 `git add`**
+- **仅提交已暂存文件**，提交流程（第 3~5 步）中**绝对禁止**自动执行任何形式的 `git add`
+- **绝对禁止**使用 `git commit -a` / `git commit --all`（会自动暂存未暂存文件）
+- 子流程 C/D 中，只有用户**主动选择**才能执行 `git add`，不得作为默认行为
 - 破坏性操作（`restore` / `reset --hard`）**必须二次确认**
 - 目标分支必须存在且合法（不含 `~` `^` `:` `?` `*` `[` `\`）
 - 源分支 = 目标分支时跳过合并
